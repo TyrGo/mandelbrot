@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Mandelbrot Explorer</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      color: #c8c8d4;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      margin: 0;
+      padding: 24px;
+    }
+    h1 {
+      color: #e0e0ec;
+      font-weight: 400;
+      font-size: 1.4em;
+      margin: 0 0 16px 0;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    select, button, input {
+      background: #16213e;
+      color: #c8c8d4;
+      border: 1px solid #334;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.85em;
+    }
+    select:hover, button:hover { border-color: #668; }
+    button { cursor: pointer; }
+    button:active { background: #1a2744; }
+    label { font-size: 0.85em; color: #888; }
+    input[type="number"] { width: 60px; text-align: center; }
+    .info {
+      font-size: 0.75em;
+      color: #556;
+      margin-bottom: 8px;
+    }
+    pre {
+      font-size: 7px;
+      line-height: 8px;
+      letter-spacing: 1px;
+      color: #a0a0b8;
+      background: #0f0f1a;
+      border: 1px solid #222;
+      border-radius: 4px;
+      padding: 8px;
+      width: fit-content;
+      cursor: zoom-in;
+      user-select: none;
+    }
+    pre.zoom-out { cursor: zoom-out; }
+    .hint {
+      font-size: 0.75em;
+      color: #445;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mandelbrot Explorer</h1>
+  <div class="controls">
+    <select id="preset"><option value="">preset...</option></select>
+    <label>iterations <input id="iter" type="number" value="100" min="1" max="10000" onchange="render()"></label>
+    <button onclick="resetView()">Reset</button>
+  </div>
+  <div class="info" id="info">center: (-0.5, 0) &middot; zoom: 1x</div>
+  <pre id="out">loading...</pre>
+  <div class="hint">click to zoom in &middot; shift-click to zoom out</div>
+
+  <script>
+    let cx = -0.5, cy = 0, zoom = 1;
+    const W = 120, H = 50;
+
+    function updateInfo() {
+      document.getElementById("info").textContent =
+        `center: (${cx.toFixed(6)}, ${cy.toFixed(6)}) · zoom: ${zoom.toFixed(1)}x`;
+    }
+
+    async function loadPresets() {
+      const r = await (await fetch("/presets")).json();
+      const s = document.getElementById("preset");
+
+      r.forEach(p => {
+        const o = document.createElement("option");
+        o.value = JSON.stringify(p);
+        o.textContent = p.name;
+        s.appendChild(o);
+      });
+
+      s.onchange = () => {
+        if (!s.value) return;
+
+        const p = JSON.parse(s.value);
+        cx = p.center_x; cy = p.center_y; zoom = p.zoom;
+        if (p.max_iter) document.getElementById("iter").value = p.max_iter;
+
+        render();
+      };
+    }
+
+    async function render() {
+      const mi = document.getElementById("iter").value;
+      const u = `/mandelbrot?center_x=${cx}&center_y=${cy}&zoom=${zoom}&width=${W}&height=${H}&max_iter=${mi}`;
+      updateInfo();
+      document.getElementById("out").textContent = await (await fetch(u)).text();
+    }
+
+    function clickZoom(e, direction) {
+      const pre = document.getElementById("out");
+      const rect = pre.getBoundingClientRect();
+      const fx = (e.clientX - rect.left) / rect.width;
+      const fy = (e.clientY - rect.top) / rect.height;
+
+      if (direction > 0) {
+        // zoom in: recenter on click point, then zoom
+        const yr = 1.5 / zoom;
+        const xr = yr * 0.65 * W / H;
+        cx += (fx - 0.5) * 2 * xr;
+        cy -= (fy - 0.5) * 2 * yr;
+        zoom *= 3;
+      } else {
+        // zoom out from center
+        zoom = Math.max(0.5, zoom / 3);
+      }
+
+      render();
+    }
+
+    function resetView() {
+      cx = -0.5; cy = 0; zoom = 1;
+      document.getElementById("iter").value = 100;
+      document.getElementById("preset").value = "";
+      render();
+    }
+
+    const pre = document.getElementById("out");
+
+    pre.onclick = e => clickZoom(e, e.shiftKey ?  -1 : 1);
+
+    pre.oncontextmenu = e => {
+      e.preventDefault();
+      clickZoom(e, -1);
+    };
+
+    document.onkeydown = e => e.key === "Shift" && pre.classList.add("zoom-out");
+    document.onkeyup = e => e.key === "Shift" && pre.classList.remove("zoom-out");
+
+    loadPresets();
+    render();
+  </script>
+</body>
+</html>
