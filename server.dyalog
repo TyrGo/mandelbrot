@@ -131,7 +131,7 @@
       :If qpos>≢url
           r←url ''
       :Else
-          r←((qpos-1)↑url)((qpos+1)↓url)
+          r←((qpos-1)↑url)(qpos↓url)
       :EndIf
     ∇
 
