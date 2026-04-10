@@ -72,6 +72,7 @@ docker run --rm -p 8080:8080 -v "$(pwd)":/app dyalog/dyalog
 ## How It Works
 
 ```apl
-⍝ The entire computation is one line — apply a step function max_iter times via ⍣
 iters←4⊃{(z c m n)←⍵ ⋄ z←c+(z*2) ⋄ m2←m∧2≥|z ⋄ (m2×z) c m2 (n+m)}⍣max_iter⊢(0×C) C ((⍴C)⍴1) ((⍴C)⍴0)
 ```
+
+![Mandelbrot Explorer](mandelbrot.jpg)
